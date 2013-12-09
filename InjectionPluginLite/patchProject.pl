@@ -22,20 +22,20 @@ my $ifdef = $projName =~ /UICatalog|(iOS|OSX)GLEssentials/ ?
     "__OBJC__ // would normally be DEBUG" : "DEBUG";
 
 
-print "\\b Patching project contained in: $projRoot\n";
-
-patchAll( "*refix.pch", sub {
-    $_[0] =~ s/\n*($key.*)?$/<<CODE/es;
-
-
-$key
-
-#ifdef $ifdef
-#define INJECTION_ENABLED
-#import "$resources/BundleInterface.h"
-#endif
-CODE
-    } );
+#print "\\b Patching project contained in: $projRoot\n";
+#
+#patchAll( "*refix.pch", sub {
+#    $_[0] =~ s/\n*($key.*)?$/<<CODE/es;
+#
+#
+#$key
+#
+##ifdef $ifdef
+##define INJECTION_ENABLED
+##import "$resources/BundleInterface.h"
+##endif
+#CODE
+#    } );
 
 $ifdef .= "\n#define INJECTION_PORT $selectedFile" if $isAppCode;
 
