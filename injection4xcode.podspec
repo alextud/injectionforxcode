@@ -6,7 +6,7 @@ Pod::Spec.new do |s|
   s.homepage     = 'http://www.injectionforxcode.com'
   s.platform     = :ios, '6.0'
   s.source       = { :git => 'https://github.com/alextud/injectionforxcode.git' }
-  s.source_files = 'InjectionPluginLite/Classes/BundleInjection.h'
+  s.source_files = 'InjectionPluginLite/Classes/BundleInjection.h', 'InjectionPluginLite/Classes/BundleInterface.h'
   s.frameworks   = 'Foundation'
   s.requires_arc = true
 end
