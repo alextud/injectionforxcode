@@ -31,6 +31,7 @@
 
 /* Begin PBXFileReference section */
 		089C1672FE841209C02AAC07 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = /System/Library/Frameworks/Foundation.framework; sourceTree = "<absolute>"; };
+		23E99B54188EAC3E007CB68D /* Injection-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Injection-Prefix.pch"; sourceTree = "<group>"; };
 		7F2EB899145057EA00E97A87 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
 		8D5B49B6048680CD000E48DA /* InjectionPlugin.xcplugin */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InjectionPlugin.xcplugin; sourceTree = BUILT_PRODUCTS_DIR; };
 		8D5B49B7048680CD000E48DA /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -122,6 +123,7 @@
 				BB3EFFAD16A4B815001F0065 /* INPluginClientController.m */,
 				BB3EFFD916A541B8001F0065 /* BundleInterface.h */,
 				BB3EFFD816A541B8001F0065 /* BundleInjection.h */,
+				23E99B54188EAC3E007CB68D /* Injection-Prefix.pch */,
 			);
 			path = Classes;
 			sourceTree = "<group>";
