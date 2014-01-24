@@ -4,7 +4,7 @@ Pod::Spec.new do |s|
   s.summary      = 'Runtime Code Injection for Objective-C.'
   s.author       = { 'John Holdsworth' => '@Injection4Xcode' }
   s.homepage     = 'http://www.injectionforxcode.com'
-  s.platform     = :ios, '6.0'
+  s.platform     = :ios, '5.0'
   s.source       = { :git => 'https://github.com/alextud/injectionforxcode.git' }
   s.source_files = 'InjectionPluginLite/Classes/BundleInjection.h', 'InjectionPluginLite/Classes/BundleInterface.h'
   s.prefix_header_file = 'InjectionPluginLite/Classes/Injection-Prefix.pch'
