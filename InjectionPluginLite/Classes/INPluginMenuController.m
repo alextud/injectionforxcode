@@ -12,6 +12,7 @@
 
 #import "INPluginMenuController.h"
 #import "INPluginClientController.h"
+@class IDEConsoleTextView;
 
 @implementation INPluginMenuController
 
@@ -72,6 +73,9 @@
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(selectionDidChange:)
                                                      name:NSTextViewDidChangeSelectionNotification object:nil];
+        
+//      inserted by Alex
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didSaveDocumentNotification:) name:@"IDEEditorDocumentDidSaveNotification" object:nil];
 	}
     else
         [self error:@"InInjectionPlugin: Could not locate Product Menu."];
@@ -94,6 +98,41 @@
 - (void)startProgress {
     NSView *scrollView = [[self.lastTextView superview] superview];
     [scrollView addSubview:self.progressIndicator];
+}
+
+- (void)didSaveDocumentNotification:(NSNotification *)notification {
+    BOOL ignore = !self.client.connected;
+    if (ignore) {
+        return;
+    } else {
+        NSDocument *doc = [notification object];
+        NSString *filePath = [[doc fileURL] path];
+        NSString *workspacePath = [self workspacePath];
+        
+        int limit = 200;
+        while ([workspacePath pathExtension] && limit > 0) {
+            workspacePath = [workspacePath stringByDeletingLastPathComponent];
+            limit--;
+        }
+        if (! workspacePath.length) {
+            return;
+        }
+        
+        BOOL sameProject = [filePath hasPrefix:workspacePath];
+        if (! sameProject) {
+            return;
+        }
+        
+        if ( [filePath rangeOfString:@"\\.mm?$"
+                             options:NSRegularExpressionSearch].location == NSNotFound ) {
+        } else {
+            id console = [self consoleView:[NSApp mainWindow].contentView];
+            [console performSelector:@selector(insertText:) withObject:[NSString stringWithFormat:@"Building %@", filePath]];
+            [console performSelector:@selector(insertNewline:) withObject:self];
+            
+            [self.client runScript:@"injectSource.pl" withArg:filePath];
+        }
+    }
 }
 
 #pragma mark - Text Selection Handling
@@ -197,6 +236,26 @@ static NSString *kAppHome = @"http://injection.johnholdsworth.com/",
         [self.client runScript:@"injectSource.pl" withArg:lastFile];
 }
 
+- (IDEConsoleTextView *)consoleView:(NSView *)parentView
+{
+    for (NSView *view in [parentView subviews])
+    {
+        if ([view isKindOfClass:NSClassFromString(@"IDEConsoleTextView")])
+        {
+            return (IDEConsoleTextView *)view;
+        }
+        else
+        {
+            NSView *childView = (id)[self consoleView:view];
+            if ([childView isKindOfClass:NSClassFromString(@"IDEConsoleTextView")])
+            {
+                return (IDEConsoleTextView *)childView;
+            }
+        }
+    }
+    return nil;
+}
+
 #pragma mark - Injection Service
 
 static CFDataRef copy_mac_address(void)
@@ -274,9 +333,16 @@ static CFDataRef copy_mac_address(void)
         [self error:@"Could not set socket option: %s", strerror( errno )];
     else if ( setsockopt( serverSocket, IPPROTO_TCP, TCP_NODELAY, (void *)&optval, sizeof(optval)) < 0 )
         [self error:@"Could not set socket option: %s", strerror( errno )];
-    else if ( bind( serverSocket, (struct sockaddr *)&serverAddr, sizeof serverAddr ) < 0 )
-        [self error:@"Could not bind service socket: %s", strerror( errno )];
-    else if ( listen( serverSocket, 5 ) < 0 )
+    else if ( bind( serverSocket, (struct sockaddr *)&serverAddr, sizeof serverAddr ) < 0 ) {
+        static int maxTries = 3;
+        if (maxTries > 0) {
+            INJECTION_PORT++;
+            maxTries --;
+            [self startServer];
+        } else {
+            [self error:@"Could not bind service socket: %s", strerror( errno )];
+        }
+    } else if ( listen( serverSocket, 5 ) < 0 )
         [self error:@"Service socket would not listen: %s", strerror( errno )];
     else
         [self performSelectorInBackground:@selector(backgroundConnectionService) withObject:nil];

@@ -14,7 +14,8 @@
 #import "BundleInterface.h"
 
 #ifndef INJECTION_PORT
-#define INJECTION_PORT 31442
+//#define INJECTION_PORT 31442
+static long INJECTION_PORT  = 31442;
 #endif
 
 #define INJECTION_MAGIC -INJECTION_PORT*INJECTION_PORT

@@ -210,8 +210,8 @@ static NSString *kINUnlockCommand = @"INUnlockCommand", *kINSilent = @"INSilent"
         [self logRTF:error];
         if ( !self.consolePanel.isVisible )
             autoOpened = YES;
-        [self.consolePanel orderFront:self];
-        [self.errorPanel orderFront:self];
+//        [self.consolePanel orderFront:self];
+//        [self.errorPanel orderFront:self];
     }
     else {
         [self logRTF:@"\\line Bundle loaded successfully.\\line"];
