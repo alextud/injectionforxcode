@@ -158,9 +158,8 @@ static NSString *kINUnlockCommand = @"INUnlockCommand", *kINSilent = @"INSilent"
 
     clientSocket = appConnection;
 
-    [self.docTile
-     performSelectorOnMainThread:@selector(setBadgeLabel:)
-     withObject:@"1" waitUntilDone:NO];
+//    no need for badges
+//    [self.docTile performSelectorOnMainThread:@selector(setBadgeLabel:) withObject:@"1" waitUntilDone:NO];
 
     for ( NSSlider *slider in [sliders subviews] )
         [self slid:slider];
@@ -193,9 +192,8 @@ static NSString *kINUnlockCommand = @"INUnlockCommand", *kINSilent = @"INSilent"
     clientSocket = 0;
     patchNumber = 1;
 
-    [self.docTile
-     performSelectorOnMainThread:@selector(setBadgeLabel:)
-     withObject:nil waitUntilDone:NO];
+//    //    no need for badges
+//    [self.docTile performSelectorOnMainThread:@selector(setBadgeLabel:) withObject:nil waitUntilDone:NO];
 }
 
 - (void)connectionKeepalive {

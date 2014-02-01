@@ -105,6 +105,16 @@
     if (ignore) {
         return;
     } else {
+        NSString *projectName = [self currentProjectName];
+        if (! projectName) {
+            return;
+        }
+        
+        NSLog(@"%@", [NSString stringWithFormat:@"Check %@ == %@", projectName, self.client.executablePath]);
+        if (! [self.client.executablePath hasSuffix:projectName]) {
+            return;
+        }
+        
         NSDocument *doc = [notification object];
         NSString *filePath = [[doc fileURL] path];
         NSString *workspacePath = [self workspacePath];
@@ -126,10 +136,7 @@
         if ( [filePath rangeOfString:@"\\.mm?$"
                              options:NSRegularExpressionSearch].location == NSNotFound ) {
         } else {
-            id console = [self consoleView:[NSApp mainWindow].contentView];
-            [console performSelector:@selector(insertText:) withObject:[NSString stringWithFormat:@"Building %@", filePath]];
-            [console performSelector:@selector(insertNewline:) withObject:self];
-            
+            [self logTestToDebuggerConsole:[NSString stringWithFormat:@"Building %@", filePath]];
             [self.client runScript:@"injectSource.pl" withArg:filePath];
         }
     }
@@ -162,11 +169,12 @@
 
 - (NSString *)workspacePath {
     id delegate = [[NSApp keyWindow] delegate];
-    if ( ![delegate respondsToSelector:@selector(document)] )
+    if ( ![delegate respondsToSelector:@selector(document)] ) {
         delegate = [[self.lastTextView window] delegate];
+    }
     NSDocument *workspace = [delegate document];
-    return [workspace isKindOfClass:IDEWorkspaceDocument] ?
-        [[workspace fileURL] path] : nil;
+    
+    return [workspace isKindOfClass:IDEWorkspaceDocument] ? [[workspace fileURL] path] : nil;
 }
 
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
@@ -187,6 +195,23 @@
         return self.client.connected;
     else
         return YES;
+}
+
+- (NSString *)currentProjectName {
+    NSString *workspace = [self workspacePath];
+    NSRange range = [workspace rangeOfString:@"([^/]+)(?=\\.(?:xcodeproj|xcworkspace))"
+                                     options:NSRegularExpressionSearch];
+    if ( workspace && range.location != NSNotFound ) {
+        return [workspace substringWithRange:range];
+    } else {
+        return nil;
+    }
+}
+
+- (void)logTestToDebuggerConsole:(NSString *)text {
+    id console = [self xcodeConsoleView:[NSApp keyWindow].contentView];
+    [console performSelector:@selector(insertText:) withObject:text];
+    [console performSelector:@selector(insertNewline:) withObject:self];
 }
 
 #pragma mark - Actions
@@ -236,7 +261,7 @@ static NSString *kAppHome = @"http://injection.johnholdsworth.com/",
         [self.client runScript:@"injectSource.pl" withArg:lastFile];
 }
 
-- (IDEConsoleTextView *)consoleView:(NSView *)parentView
+- (IDEConsoleTextView *)xcodeConsoleView:(NSView *)parentView
 {
     for (NSView *view in [parentView subviews])
     {
@@ -246,7 +271,7 @@ static NSString *kAppHome = @"http://injection.johnholdsworth.com/",
         }
         else
         {
-            NSView *childView = (id)[self consoleView:view];
+            NSView *childView = (id)[self xcodeConsoleView:view];
             if ([childView isKindOfClass:NSClassFromString(@"IDEConsoleTextView")])
             {
                 return (IDEConsoleTextView *)childView;
