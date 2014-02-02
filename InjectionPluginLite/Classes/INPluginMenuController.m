@@ -133,11 +133,13 @@
             return;
         }
         
+        BOOL isXib = [filePath hasSuffix:@".xib"];
         if ( [filePath rangeOfString:@"\\.mm?$"
-                             options:NSRegularExpressionSearch].location == NSNotFound ) {
+                             options:NSRegularExpressionSearch].location == NSNotFound && ! isXib) {
         } else {
             [self logTestToDebuggerConsole:[NSString stringWithFormat:@"Building %@", filePath]];
-            [self.client runScript:@"injectSource.pl" withArg:filePath];
+            NSString *scriptFile = isXib ? @"injectXib.pl" : @"injectSource.pl";
+            [self.client runScript:scriptFile withArg:filePath];
         }
     }
 }
