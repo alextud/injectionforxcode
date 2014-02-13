@@ -245,7 +245,7 @@ static NSNetService *service;
         size_t alen = strlen(arch)+1;
 
         int i;
-        for ( i=0 ; i<100 ; i++ ) {
+        for ( i=0 ; i<2 ; i++ ) {
             int loaderSocket = 0;
 
             const char **addrPtr;
