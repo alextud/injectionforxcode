@@ -1,5 +1,5 @@
 //
-//  $Id: //depot/InjectionPluginLite/Classes/INPluginMenuController.m#31 $
+//  $Id: //depot/InjectionPluginLite/Classes/INPluginMenuController.m#46 $
 //  InjectionPluginLite
 //
 //  Created by John Holdsworth on 15/01/2013.
@@ -9,10 +9,24 @@
 //
 //  This file is copyright and may not be re-distributed, whole or in part.
 //
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+//  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+//  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+//  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+//  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+//  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+//  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
 
 #import "INPluginMenuController.h"
 #import "INPluginClientController.h"
-@class IDEConsoleTextView;
+
+@interface NSObject(INMethodsUsed)
++ (NSImage *)iconImage_pause;
+@end
 
 @implementation INPluginMenuController
 
@@ -42,6 +56,8 @@
 {
     IDEWorkspaceDocument = NSClassFromString(@"IDEWorkspaceDocument");
     DVTSourceTextView = NSClassFromString(@"DVTSourceTextView");
+    IDEConsoleTextView = NSClassFromString(@"IDEConsoleTextView");
+
     self.defaults = [NSUserDefaults standardUserDefaults];
 
     if ( ![NSBundle loadNibNamed:@"INPluginMenuController" owner:self] )
@@ -171,11 +187,11 @@
 
 - (NSString *)workspacePath {
     id delegate = [[NSApp keyWindow] delegate];
-    if ( ![delegate respondsToSelector:@selector(document)] ) {
+    if ( ![delegate respondsToSelector:@selector(document)] )
         delegate = [[self.lastTextView window] delegate];
-    }
+    if ( ![delegate respondsToSelector:@selector(document)] )
+        delegate = [self.lastWin delegate];
     NSDocument *workspace = [delegate document];
-    
     return [workspace isKindOfClass:IDEWorkspaceDocument] ? [[workspace fileURL] path] : nil;
 }
 
@@ -245,43 +261,123 @@ static NSString *kAppHome = @"http://injection.johnholdsworth.com/",
 - (IBAction)openBundle:sender {
     [self.client runScript:@"openBundle.pl" withArg:[self lastFileSaving:YES]];
 }
+
 - (IBAction)injectSource:(id)sender {
-    NSString *lastFile = [self lastFileSaving:YES];
+    NSString *lastFile = sender ? [self lastFileSaving:YES] : self.lastFile;
+    if ( !lastFile ) {
+        [self.client alert:@"No source file is selected. "
+         "Make sure that text is selected and the cursor is inside the file you have edited."];
+        return;
+    }
+    else if ( [lastFile rangeOfString:@"\\.mm?$"
+                              options:NSRegularExpressionSearch].location == NSNotFound ) {
+        [self.client alert:@"Only class implementations (.m or .mm files) can be injected. "
+         "Make sure that text is selected and the cursor is inside the file you have edited."];
+        return;
+    }
+    else if ( !self.client.connected ) {
+
+        // "unpatched" injection
+        if ( sender ) {
+            self.lastFile = lastFile;
+            self.lastWin = [self.lastTextView window];
+            [self findConsole:[self.lastWin contentView]];
+            [self.lastWin makeFirstResponder:self.debugger];
+            if ( ![[[self.pauseResume target] class] respondsToSelector:@selector(iconImage_pause)] ||
+                    [self.pauseResume image] == [[[self.pauseResume target] class] iconImage_pause] )
+                [self.pauseResume performClick:self];
+            [NSObject cancelPreviousPerformRequestsWithTarget:self];
+            [self performSelector:@selector(findLLDB) withObject:nil afterDelay:.5];
+            //[Xtrace dumpClass:[self.debugger class]];
+        }
+        else
+            [self performSelector:@selector(injectSource:) withObject:nil afterDelay:.1];
+
+        return;
+    }
+
     if ( ![self workspacePath] )
         [self.client alert:@"No project is open. Make sure the project you are working on is the \"Key Window\"."];
     else if ( !self.client.connected )
         [self.client alert:@"No  application has connected to injection. "
          "Patch the project and make sure DEBUG is #defined then run project again."];
-    else if ( !lastFile )
-        [self.client alert:@"No source file is selected. "
-         "Make sure that text is selected and the cursor is inside the file you have edited."];
-    else if ( [lastFile rangeOfString:@"\\.mm?$"
-                                options:NSRegularExpressionSearch].location == NSNotFound )
-        [self.client alert:@"Only class implementations (.m or .mm files) can be injected. "
-         "Make sure that text is selected and the cursor is inside the file you have edited."];
     else
         [self.client runScript:@"injectSource.pl" withArg:lastFile];
+
+    self.pauseResume = nil;
+    self.debugger = nil;
+    self.lastWin = nil;
 }
 
-- (IDEConsoleTextView *)xcodeConsoleView:(NSView *)parentView
-{
-    for (NSView *view in [parentView subviews])
-    {
-        if ([view isKindOfClass:NSClassFromString(@"IDEConsoleTextView")])
-        {
-            return (IDEConsoleTextView *)view;
-        }
-        else
-        {
-            NSView *childView = (id)[self xcodeConsoleView:view];
-            if ([childView isKindOfClass:NSClassFromString(@"IDEConsoleTextView")])
-            {
-                return (IDEConsoleTextView *)childView;
-            }
-        }
+- (void)findConsole:(NSView *)view {
+    for ( NSView *subview in [view subviews] ) {
+        if ( [subview isKindOfClass:[NSButton class]] &&
+            [(NSButton *)subview action] == @selector(pauseOrResume:) )
+            self.pauseResume = (NSButton *)subview;
+        if ( [subview class] == IDEConsoleTextView )
+            self.debugger = (NSTextView *)subview;
+        [self findConsole:subview];
     }
-    return nil;
 }
+
+- (void)findLLDB {
+
+    // do we have lldb's attention?
+    if ( [[self.debugger string] rangeOfString:@"27359872639733"].location == NSNotFound ) {
+        [self performSelector:@selector(findLLDB) withObject:nil afterDelay:.5];
+        [self keyEvent:@"p 27359872639632+101" code:0 after:.1];
+        return;
+    }
+
+    [NSObject cancelPreviousPerformRequestsWithTarget:self];
+    NSString *loader = [NSString stringWithFormat:@"p (void)[[NSBundle bundleWithPath:@\""
+                        "%@/InjectionLoader.bundle\"] load]", self.client.scriptPath];
+
+    float after = 0;
+    [self keyEvent:loader code:0 after:after+=.5];
+    [self keyEvent:loader code:0 after:after+=.5];
+    [self keyEvent:@"c" code:0 after:after+=.5];
+
+    [[self.lastTextView window] makeFirstResponder:self.lastTextView];
+    [self performSelector:@selector(injectSource:) withObject:nil afterDelay:after+=.5];
+}
+
+- (void)keyEvent:(NSString *)str code:(unsigned short)code after:(float)delay {
+    NSEvent *event = [NSEvent keyEventWithType:NSKeyDown location:NSMakePoint(0, 0)
+                                 modifierFlags:0 timestamp:0 windowNumber:0 context:0
+                                    characters:str charactersIgnoringModifiers:nil
+                                     isARepeat:YES keyCode:code];
+    if ( [[self.debugger window] firstResponder] == self.debugger )
+        [self performSelector:@selector(keyEvent:) withObject:event afterDelay:delay];
+    if ( code == 0 )
+        [self keyEvent:@"\r" code:36 after:delay+.1];
+}
+
+- (void)keyEvent:(NSEvent *)event {
+    [[self.debugger window] makeFirstResponder:self.debugger];
+    if ( [[self.debugger window] firstResponder] == self.debugger )
+        [self.debugger keyDown:event];
+}
+
+//- (IDEConsoleTextView *)xcodeConsoleView:(NSView *)parentView
+//{
+//    for (NSView *view in [parentView subviews])
+//    {
+//        if ([view isKindOfClass:NSClassFromString(@"IDEConsoleTextView")])
+//        {
+//            return (IDEConsoleTextView *)view;
+//        }
+//        else
+//        {
+//            NSView *childView = (id)[self xcodeConsoleView:view];
+//            if ([childView isKindOfClass:NSClassFromString(@"IDEConsoleTextView")])
+//            {
+//                return (IDEConsoleTextView *)childView;
+//            }
+//        }
+//    }
+//    return nil;
+//}
 
 #pragma mark - Injection Service
 
@@ -339,7 +435,7 @@ static CFDataRef copy_mac_address(void)
                        [[[INJECTION_BRIDGE(NSData *)copy_mac_address() description]
                          substringWithRange:NSMakeRange(5, 9)]
                         stringByReplacingOccurrencesOfString:@" " withString:@""]];
-    INLog( @"%@ %@", [INJECTION_BRIDGE(NSData *)copy_mac_address() description], _bonjourName);
+    //INLog( @"%@ %@", [INJECTION_BRIDGE(NSData *)copy_mac_address() description], _bonjourName);
     return _bonjourName;
 }
 
@@ -367,9 +463,11 @@ static CFDataRef copy_mac_address(void)
             maxTries --;
             [self startServer];
         } else {
-            [self error:@"Could not bind service socket: %s", strerror( errno )];
+            [self error:@"Could not bind service socket: %s. "
+             "Kill any \"ibtoold\" processes and restart.", strerror( errno )];
         }
-    } else if ( listen( serverSocket, 5 ) < 0 )
+    }
+    else if ( listen( serverSocket, 5 ) < 0 )
         [self error:@"Service socket would not listen: %s", strerror( errno )];
     else
         [self performSelectorInBackground:@selector(backgroundConnectionService) withObject:nil];
@@ -382,7 +480,7 @@ static CFDataRef copy_mac_address(void)
     netService.delegate = self;
     [netService publish];
 
-    INLog( @"Waiting for connections..." );
+    INLog( @"Injection: Waiting for connections..." );
     while ( TRUE ) {
         struct sockaddr_in clientAddr;
         socklen_t addrLen = sizeof clientAddr;
@@ -442,7 +540,7 @@ static CFDataRef copy_mac_address(void)
 
 - (void)setupLicensing {
     struct stat tstat;
-    if ( refkey || stat( "/Applications/Injection Plugin.app/Contents/Resources/InjectionPluginLite", &tstat ) == 0 )
+    if ( refkey || stat( "/Applications/Objective-C++.app/Contents/Resources/InjectionPluginLite", &tstat ) == 0 )
         return;
     time_t now = time(NULL);
     installed = [self.defaults integerForKey:kInstalled];

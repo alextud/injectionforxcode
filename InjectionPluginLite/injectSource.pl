@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-#  $Id: //depot/InjectionPluginLite/injectSource.pl#35 $
+#  $Id$
 #  Injection
 #
 #  Created by John Holdsworth on 16/01/2012.
@@ -16,7 +16,7 @@ use common;
 
 my $bundleProjectFile = "$InjectionBundle/InjectionBundle.xcodeproj/project.pbxproj";
 my $bundleProjectSource = -f $bundleProjectFile && loadFile( $bundleProjectFile );
-my $pbxFile = "$projName.xcodeproj/project.pbxproj";
+my $mainProjectFile = "$projName.xcodeproj/project.pbxproj";
 
 sub mtime {
     my ($file) = @_;
@@ -28,35 +28,34 @@ if ( !$executable ) {
     exit 0;
 }
 
+############################################################################
+#
+# If project has not been injected before, copy template bundle project
+# and bring across key parameters also setting header include path.
+#
+
 if ( ! -d $InjectionBundle ) {
     print "Copying $template into project.\n";
 
     0 == system "cp -r \"$FindBin::Bin/$template\" $InjectionBundle && chmod -R og+w $InjectionBundle"
         or error "Could not copy injection bundle.";
 
+    # try to use main project's precompilation header
     my $bundlePCH = "$InjectionBundle/InjectionBundle-Prefix.pch";
     if ( my ($projectPCH) = split "\n", `find . -name "$projName-Prefix.pch"` ) {
-        print "Linking to pre-compilation header: $projectPCH\n";
+        print "Linking $bundlePCH to main pre-compilation header: $projectPCH\n";
         unlink $bundlePCH;
         symlink "../$projectPCH", $bundlePCH
             or error "Could not link main preprocessor header as: $!";
     }
-    else {
-        IO::File->new( ">> $bundlePCH" )->print( <<CODE );
-
-#ifdef DEBUG
-    #define INJECTION_ENABLED
-    #import "$resources/BundleInterface.h"
-#endif
-CODE
-    }
 
     $bundleProjectSource = loadFile( $bundleProjectFile );
-    if ( -f $pbxFile ) {
+    if ( -f $mainProjectFile ) {
         print "Migrating project parameters to bundle..\n";
-        my $projectSource = loadFile( $pbxFile );
+        my $mainProjectSource = loadFile( $mainProjectFile );
 
-        if ( $projectSource =~ /sourcecode.cpp.objcpp/ ) {
+        # has Objective-C++ been used in the main project?
+        if ( $mainProjectSource =~ /sourcecode.cpp.objcpp/ ) {
             $bundleProjectSource =~ s/(explicitFileType = sourcecode).c.objc/$1.cpp.objcpp/;
         }
 
@@ -65,15 +64,30 @@ CODE
         foreach my $parm (qw(MACOSX_DEPLOYMENT_TARGET IPHONEOS_DEPLOYMENT_TARGET
                 ARCHS VALID_ARCHS SDKROOT GCC_ENABLE_OBJC_GC CLANG_ENABLE_OBJC_ARC
                 CLANG_CXX_LANGUAGE_STANDARD CLANG_CXX_LIBRARY)) {
-            if ( my ($val) = $projectSource =~ /(\b$parm = [^;]*;)/ ) {
+            if ( my ($val) = $mainProjectSource =~ /(\b$parm = [^;]*;)/ ) {
                 print "Inported setting $val\n";
                 $bundleProjectSource =~ s/\b$parm = [^;]*;/$val/g;
             }
         }
+
+    }
+
+    # set include path from list of directories containing headers in the main project
+    # This should allow injection to work for all classes in this project but you may
+    # still mean you need to open the injection bundle project to add to this path if
+    # you are injecting classes in frameworks.
+    if ( my @includePath = loadFile( "find . -name '*.h' | sed -e 's!/[^/]*\$!!' | sort -u | grep -v InjectionProject |" ) ) {
+        $bundleProjectSource =~ s!(HEADER_SEARCH_PATHS = \(\n)(\s+)"../\*\*",!
+            $1.join "\n", map "$2\"\\\".$_\\\"\",", @includePath;
+        !eg;
     }
 }
 
 ############################################################################
+#
+# Determine the xcode build command for the bundle subproject and determine
+# the code signing identity for when we are injecting to a device.
+#
 
 mkdir my $archDir = "$InjectionBundle/$arch";
 my $config = " -configuration Debug -arch $arch";
@@ -99,11 +113,17 @@ if ( $localBinary && $bundleProjectSource =~ s/(BUNDLE_LOADER = )([^;]+;)/$1"$lo
 }
 
 ############################################################################
+#
+# This section is about learning the compile commands for classes in the
+# main project using "xcodebuild -dry-run". This helps avoid issues with
+# header include paths or specific compileation options used by the main
+# project. They are stored in a "memory" file - by architecture.
+#
 
 my $learn = "xcodebuild -dry-run $config";
 $learn .= " -project \"$projName.xcodeproj\"" if $projName;
-my $memory = "$archDir/compile_memory.gz";
-my $mainProjectChanged = mtime( $pbxFile ) > mtime( $memory );
+my $memory = "$archDir/compile_memory.txt.gz";
+my $mainProjectChanged = mtime( $mainProjectFile ) > mtime( $memory );
 my $canLearn = !$isAndroid && 1;
 my %memory;
 
@@ -152,15 +172,22 @@ if ( $canLearn ) {
 }
 
 ############################################################################
+#
+# Create the "changes" file which #imports the source being injected so it
+# can be built into the bundle project. If the compile command is "learnt"
+# this will be <calssfile>.m.tmp in the class's original directory and a
+# temporaray object file XXXInjectionPoeject/<arch>/injecting_class.o used.
+# Otherwise the source will be #imported in "BundleContents.m" for use.
+#
 
 my @classes = unique loadFile( $selectedFile ) =~ /\@implementation\s+(\w+)\b/g;
 my $changesFile = "$InjectionBundle/BundleContents.m";
 my $learnt = $memory{$selectedFile};
 
-if ( $learnt ) {
+if ( $learnt || $isAndroid ) {
     IO::File->new( "> $changesFile" )
         ->print( "// learnt compilation.\n" );
-    $changesFile = "$selectedFile.tmp";
+    ($changesFile = $selectedFile) =~ s/(\.\w+)$/_$1/;
 }
 
 my $changesSource = IO::File->new( "> $changesFile" )
@@ -174,6 +201,7 @@ $changesSource->print( <<CODE );
 #define INJECTION_NOIMPL
 #define INJECTION_BUNDLE $productName
 
+#define INJECTION_ENABLED
 #import "$resources/BundleInjection.h"
 
 #undef _instatic
@@ -185,7 +213,15 @@ $changesSource->print( <<CODE );
 #undef _inval
 #define _inval( _val... ) /* = _val */
 
-@{[$learnt?'':'#import "BundleContents.h"']}
+@{[$learnt||$isAndroid?'':'#import "BundleContents.h"']}
+
+#if __cplusplus
+extern "C" {
+#endif
+    int injectionHook();
+#if __cplusplus
+};
+#endif
 
 \@interface $productName : NSObject
 \@end
@@ -193,12 +229,10 @@ $changesSource->print( <<CODE );
 
 + (void)load {
     Class bundleInjection = NSClassFromString(@"BundleInjection");
-@{[join '', map "    extern Class OBJC_CLASS_\$_$_;\n\t[bundleInjection loadedClass:INJECTION_BRIDGE(Class)(void *)&OBJC_CLASS_\$_$_ notify:$flags];\n", @classes]}    [bundleInjection loadedNotify:$flags];
+@{[join '', map "    extern Class OBJC_CLASS_\$_$_;\n\t[bundleInjection loadedClass:INJECTION_BRIDGE(Class)(void *)&OBJC_CLASS_\$_$_ notify:$flags];\n", @classes]}    [bundleInjection loadedNotify:$flags hook:(void *)injectionHook];
 }
 
 \@end
-
-extern int injectionHook(void);
 
 int injectionHook() {
     NSLog( \@"injectionHook():" );
@@ -213,39 +247,61 @@ CODE
 $changesSource->close();
 
 ############################################################################
+#
+# At this point basic support has been patched in for an Apportable build on
+# Android devices where a .approj file is present. Your milage may vary...
+#
 
 if ( $isAndroid ) {
-    print "\nPerforming Android Build...\n";
-    
     my $pkg;
-    patchAll( "*Info.plist", sub {
+    patchAll( "Info.plist", sub {
         $pkg ||= ($_[0] =~ m@<key>CFBundleIdentifier</key>\s*<string>([^<]*)<@s)[0];
+        return 0;
     } );
     $pkg =~ s/\${PRODUCT_NAME:rfc1034identifier}/$projName/;
     $pkg =~ s/ /_/g;
 
-    (my $prjName = $projName) =~ s/ //g;
-    my $so = "/data/data/$pkg/cache/$productName.so";
-    my @syslibs = qw(c m v cxx System objc pthread_workqueue dispatch ffi Foundation freetype CoreGraphics OpenAL BridgeKit GLESv1_CM GLESv2);
-    my $isARC = loadFile( $pbxFile ) =~ /CLANG_ENABLE_OBJC_ARC = YES/ ? "-fobjc-arc" : "-fno-objc-arc";
+    print "\nPerforming Android Build...\n";
+    chdir "$ENV{HOME}/.apportable/SDK" or die "Could not chdir as: $!";
 
-    my $command = <<COMPILE;
-cd ~/.apportable/SDK && export PATH=~/.apportable/SDK/toolchain/macosx/android-ndk/toolchains/arm-linux-androideabi-4.7/prebuilt/darwin-x86/bin:~/.apportable/SDK/bin:/opt/iOSOpenDev/bin:\$PATH && ./toolchain/macosx/clang/bin/clang -o /tmp/injection_$ENV{USER}.o -c -fpic -target arm-linux-androideabi -ccc-gcc-name arm-linux-androideabi-g++ -march=armv5te -mfloat-abi=soft -nostdinc -fsigned-char -isystem ~/.apportable/SDK/toolchain/macosx/clang/lib/clang/3.3/include -Xclang -mconstructor-aliases -fzero-initialized-in-bss -fobjc-runtime=ios-6.0.0 -fobjc-legacy-dispatch -mllvm -arm-reserve-r9 -fblocks -fobjc-call-cxx-cdtors -fstack-protector -fno-short-enums -Werror-return-type -Werror-objc-root-class -fconstant-string-class=NSConstantString -ffunction-sections -funwind-tables -Xclang -fobjc-default-synthesize-properties -Wno-c++11-narrowing -DNS_BLOCK_ASSERTIONS=1 -fwritable-strings -fasm-blocks -fno-asm -fpascal-strings $isARC -Wempty-body -Wno-deprecated-declarations -Wreturn-type -Wswitch -Wparentheses -Wformat -Wuninitialized -Wunused-value -Wunused-variable -iquote "Build/android-armeabi-debug/$projName-generated-files.hmap" -I "Build/android-armeabi-debug/$projName-own-target-headers.hmap" -I "Build/android-armeabi-debug/$projName-all-target-headers.hmap" -iquote "Build/android-armeabi-debug/$projName-project-headers.hmap" -include ~/.apportable/SDK/System/debug.pch -include "$projRoot$projName"/*Prefix.pch '-D__SHORT_FILE__="BundleContents.m"' -g -Wprotocol -std=gnu99 -fgnu-keywords -DDEBUG=1 -DANDROID=1 -DAPPORTABLE=1 -DGNUSTEP=1 -DGNUSTEP_TARGET_OS=unix -DNS_BLOCK_ASSERTIONS=1 -DTARGET_CPU_ARM=1 -DTARGET_IPHONE_SIMULATOR=0 -DTARGET_OS_ANDROID=1 -DTARGET_OS_IPHONE=1 -DTARGET_OS_android=1 -DTYPE_DEPENDENT_DISPATCH=1 -D_X_OPEN_SOURCE=500 -D__ANDROID__=1 -D__ARM_ARCH_5TE__=1 -D__ARM_EABI__=1 -D__ARM__=1 -D__BUILT_WITH_SCONS_SDK__=1 -D__IPHONE_OS_VERSION_MIN_REQUIRED=60100 -D__LITTLE_ENDIAN__=1 '-D__PROJECT__="$projName"' -D__arm__=1 -D__compiler_offsetof=__builtin_offsetof -ISystem -Isysroot/common/usr/include -Isysroot/common/usr/include -Isysroot/android/armeabi/usr/include -Isysroot/android/armeabi/usr/include/c++/llvm -ISystem/Additions "$projRoot$InjectionBundle/BundleContents.m" && arm-linux-androideabi-ld /tmp/injection_$ENV{USER}.o "Build/android-armeabi-debug/$prjName/apk/lib/armeabi/libverde.so" @{[map "sysroot/android/armeabi/usr/lib/lib$_.so", @syslibs]} -shared -o /tmp/injection_$ENV{USER}.so
-COMPILE
+    # ninja build file used for 1.1.09
+    my $ninja = loadFile( "Build/build.ninja" );
+    my $rule = $selectedFile =~ /\.mm$/ ? "compile_cxx" : "compile_c";
+    my ($command) = $ninja =~ /rule ${rule}_.*\n  command = ((?:.*\$\n)*.*)/;
+    my ($per_file_flags) = $ninja =~ /per_file_flags = (.*)/;
+    my $tmpobj = "/tmp/injection_$ENV{USER}";
+
+    $command =~ s/\$per_file_flags\b/$per_file_flags/g;
+    $command =~ s/\$in\b/"$changesFile"/g;
+    $command =~ s/\$out\b/"$tmpobj.o"/g;
+
+    $command =~ s/\$\n\s+//g;
+    $command =~ s/\$(.)/$1/g;
+
+    (my $prjName = $projName) =~ s/ //g;
+    my @syslibs = qw(android c m v z dl log cxx stdc++ System SystemConfiguration Security CFNetwork
+        Foundation CoreFoundation CoreGraphics CoreText BridgeKit OpenAL GLESv1_CM GLESv2 EGL xml2);
+
+    $command .= " && ./toolchain/macosx/android-ndk/toolchains/arm-linux-androideabi-*/prebuilt/darwin-x86*/arm-linux-androideabi/bin/ld $tmpobj.o \"Build/android-armeabi-debug/$prjName/apk/lib/armeabi/libverde.so\" @{[map \"sysroot/usr/lib/armeabi/lib$_.so\", @syslibs]} -shared -o $tmpobj.so";
 
     # print "$command";
 
-    0 == system( $command ) or error "Build failed";
+    0 == system( $command ) or error "Build failed: $changesFile";
 
     print "Loading shared library..\n";
-    print "</tmp/injection_$ENV{USER}.so\n";
+    print "<$tmpobj.so\n";
     print "!>/data/data/$pkg/cache/$productName.so\n";
     print "!/data/data/$pkg/cache/$productName.so\n";
     print "Command sent to device.\n";
-    exit;
+    exit 0;
 }
 
 ############################################################################
+#
+# This is where the learnt compilation is actually used. It's compiled into
+# the file XXXInjectionProject/<arch>/injecting_class.o and linked and the
+# bundle project file patched to link "$obj" into the bundle binary.
+#
 
 my $obj = '';
 if ( $learnt ) {
@@ -253,7 +309,9 @@ if ( $learnt ) {
 
     foreach my $compile (@$learnt) {
         my ($arch) = $compile =~ / -arch (\w+) /;
-        $compile = "time $compile.tmp -o /tmp/injection_$ENV{USER}_$arch.o";
+        $compile =~ s/(.mm?$)/_$1/;
+        $compile = "time $compile -o \"$projRoot$InjectionBundle/$arch/injecting_class.o\"";
+        print "$compile\n";
         if ( system $compile ) {
             unlink $memory;
             system "$learn clean";
@@ -261,14 +319,20 @@ if ( $learnt ) {
         }
     }
 
-    unlink "$learnt.tmp";
-    $obj = "\"/tmp/injection_$ENV{USER}_\$(CURRENT_ARCH).o\", ";
+    unlink $changesFile;
+    $obj = "\"$arch/injecting_class.o\", ";
 }
 
 $bundleProjectSource =~ s/(OTHER_LDFLAGS = \().*?("-undefined)/$1$obj$2/sg;
 saveFile( $bundleProjectFile, $bundleProjectSource );
 
 ############################################################################
+#
+# Perform the actual xcodebuild of the XXXInjectionProject to build the
+# bundle to be loaded into the application. This is quite slow so after
+# one build the commands used are recorded into a bash script to be used
+# until next time the bundle project file changes.
+#
 
 print "\nBuilding $InjectionBundle/InjectionBundle.xcodeproj\n";
 
@@ -286,6 +350,7 @@ if ( $mainProjectChanged || mtime( $bundleProjectFile ) > mtime( $buildScript ) 
         or die "Could not open '$buildScript' as: $!";
 }
 else {
+    # used recorded commands to avoid overhead of xcodebuild
     $build = "bash ../$buildScript # $build";
 }
 
@@ -297,11 +362,11 @@ while ( my $line = <BUILD> ) {
 
     if ( $recording && $line =~ m@/usr/bin/(clang|\S*gcc)@ & $line !~ /-header -arch/  ) {
         chomp (my $cmd = $line);
-        $recording->print( "time $cmd 2>&1 &&\n" );
+        $recording->print( "echo '$cmd'; time $cmd 2>&1 &&\n" );
         $recorded++;
     }
 
-    if ( $line =~ m@(/usr/bin/touch -c ("([^"]+)"|(\S+)))@ ) {
+    if ( $line =~ m@(/usr/bin/touch -c ("([^"]+)"|(\S+(\\ \S*)*)))@ ) {
         $bundlePath = $3 || $4;
         (my $cmd = $1) =~ s/'/'\\''/g;
         $recording->print( "echo && echo '$cmd' &&\n" ) if $recording;
@@ -331,8 +396,8 @@ while ( my $line = <BUILD> ) {
         }
     }
 
-    if ( $line =~ /has been modified since the precompiled header was built/ ) {
-        $rebuild++;
+    if ( $line =~ /has been modified since the precompiled header/ ) {
+        $rebuild++; # retry once after xcodebuild clean
     }
 
     print $line;
@@ -342,6 +407,7 @@ close BUILD;
 
 unlink $buildScript if $? || $recording && !$recorded;
 
+# If there has been a .pch file change it's worth trying again once
 if ( $rebuild++ == 1 ) {
     system "cd $InjectionBundle && xcodebuild $config clean";
     goto build;
@@ -352,23 +418,27 @@ if ( $? ) {
 }
 
 if ( $recording ) {
-    $recording->print( "echo && echo '** COMPILE SUCCEEDED **' && echo;\n" );
+    $recording->print( "echo && echo '** RECORDED BUILD SUCCEEDED **' && echo;\n" );
     close $recording;
 }
 
 ############################################################################
+#
+# Now we actually load the bundle using specially prefixed commands sent
+# back to Xcode which passes them on through a socket connection to the
+# BundleInjection.h code in the application.
+#
 
 print "Renaming bundle so it reloads..\n";
 
 my ($bundleRoot) = $bundlePath =~ m@^\"?(.*)/([^/]*)$@;
 my $newBundle = $isIOS ? "$bundleRoot/$productName.bundle" : "$appPackage/$productName.bundle";
 
-0 == system "rm -rf \"$newBundle\" && cp -r \"$bundlePath\" \"$newBundle\""
-    or error "Could not copy bundle to: $newBundle";
+my $command = "rm -rf \"$newBundle\" && cp -r \"$bundlePath\" \"$newBundle\"";
+print "$command\n";
+0 == system $command or error "Could not copy bundle to: $newBundle";
 
 $bundlePath = $newBundle;
-
-############################################################################
 
 if ( $isDevice ) {
     print "Codesigning with identity '$identity' for iOS device\n";
@@ -379,10 +449,5 @@ if ( $isDevice ) {
     $bundlePath = copyToDevice( $bundlePath, "$deviceRoot/tmp/$productName.bundle" );
 }
 
-if ( $executable ) {
-    print "Loading Bundle...\n";
-    print "!$bundlePath\n";
-}
-else {
-    print "Application not connected.\n";
-}
+print "Loading Bundle...\n";
+print "!$bundlePath\n";

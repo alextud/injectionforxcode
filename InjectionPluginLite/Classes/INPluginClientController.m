@@ -1,5 +1,5 @@
 //
-//  $Id: //depot/InjectionPluginLite/Classes/INPluginClientController.m#28 $
+//  $Id: //depot/InjectionPluginLite/Classes/INPluginClientController.m#31 $
 //  InjectionPluginLite
 //
 //  Created by John Holdsworth on 15/01/2013.
@@ -8,6 +8,17 @@
 //  Manages interaction with client application and runs UNIX scripts.
 //
 //  This file is copyright and may not be re-distributed, whole or in part.
+//
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+//  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+//  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+//  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+//  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+//  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+//  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
 #define INJECTION_NOIMPL
@@ -108,6 +119,7 @@ static NSString *kINUnlockCommand = @"INUnlockCommand", *kINSilent = @"INSilent"
 - (NSString *)formatColor:(NSColor *)color {
     CGFloat r=1., g=1., b=1., a=1.;
     @try {
+        color = [color colorUsingColorSpaceName:NSCalibratedRGBColorSpace];
         [color getRed:&r green:&g blue:&b alpha:&a];
     }
     @catch (NSException *e) {
@@ -255,7 +267,7 @@ static NSString *kINUnlockCommand = @"INUnlockCommand", *kINSilent = @"INSilent"
 - (void)exec:(NSString *)command {
     int length = consoleTextView.string.length;
     if ( length > 100000 )
-        consoleTextView.string = @"";
+        [self clearConsole:nil];
     else
         [consoleTextView setSelectedRange:NSMakeRange(length, 0)];
 
@@ -434,4 +446,9 @@ static NSString *kINUnlockCommand = @"INUnlockCommand", *kINSilent = @"INSilent"
     [self openResource:"BundleInterface.h"];
 }
 
+#pragma mark Console
+
+- (void)clearConsole: (id)sender {
+    consoleTextView.string = @"";
+}
 @end

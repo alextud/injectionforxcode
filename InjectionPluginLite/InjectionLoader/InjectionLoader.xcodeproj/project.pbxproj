@@ -7,28 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BB38FF3D15652C7100921F8E /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB38FF3A15652C5900921F8E /* WebKit.framework */; };
-		BB836D4B14DE3B610064F4F9 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB836D4814DE3B610064F4F9 /* Quartz.framework */; };
-		BB836D4C14DE3B610064F4F9 /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB836D4914DE3B610064F4F9 /* QuartzCore.framework */; };
-		BB836D5014DE3B750064F4F9 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BB836D4F14DE3B750064F4F9 /* OpenGL.framework */; };
-		BBC55D8E14C4ED1500C41CA1 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBC55D8D14C4ED1500C41CA1 /* Cocoa.framework */; };
-		BBC7A4A816A57FF700B90868 /* BundleContents.m in Sources */ = {isa = PBXBuildFile; fileRef = BBC7A4A716A57FF700B90868 /* BundleContents.m */; };
+		BBC7A4A216A57FCB00B90868 /* BundleContents.m in Sources */ = {isa = PBXBuildFile; fileRef = BBC7A4A116A57FCB00B90868 /* BundleContents.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		BB2B840517DD31FA0061BBB6 /* BundleContents.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BundleContents.h; sourceTree = SOURCE_ROOT; };
-		BB38FF3A15652C5900921F8E /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
-		BB836D4814DE3B610064F4F9 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
-		BB836D4914DE3B610064F4F9 /* QuartzCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuartzCore.framework; path = System/Library/Frameworks/QuartzCore.framework; sourceTree = SDKROOT; };
-		BB836D4F14DE3B750064F4F9 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
-		BBC55D8A14C4ED1500C41CA1 /* InjectionBundle.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InjectionBundle.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
-		BBC55D8D14C4ED1500C41CA1 /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
-		BBC55D9014C4ED1500C41CA1 /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
-		BBC55D9114C4ED1500C41CA1 /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
-		BBC55D9214C4ED1500C41CA1 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		BB2B840417DD31CD0061BBB6 /* BundleContents.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = BundleContents.h; sourceTree = SOURCE_ROOT; };
+		BBC55D8A14C4ED1500C41CA1 /* InjectionLoader.bundle */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = InjectionLoader.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		BBC55D9514C4ED1500C41CA1 /* InjectionBundle-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "InjectionBundle-Info.plist"; sourceTree = "<group>"; };
 		BBC55D9914C4ED1500C41CA1 /* InjectionBundle-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "InjectionBundle-Prefix.pch"; sourceTree = "<group>"; };
-		BBC7A4A716A57FF700B90868 /* BundleContents.m */ = {isa = PBXFileReference; explicitFileType = sourcecode.c.objc; fileEncoding = 4; path = BundleContents.m; sourceTree = SOURCE_ROOT; };
+		BBC7A4A116A57FCB00B90868 /* BundleContents.m */ = {isa = PBXFileReference; explicitFileType = sourcecode.cpp.objcpp; fileEncoding = 4; path = BundleContents.m; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -36,11 +23,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BB38FF3D15652C7100921F8E /* WebKit.framework in Frameworks */,
-				BB836D5014DE3B750064F4F9 /* OpenGL.framework in Frameworks */,
-				BB836D4B14DE3B610064F4F9 /* Quartz.framework in Frameworks */,
-				BB836D4C14DE3B610064F4F9 /* QuartzCore.framework in Frameworks */,
-				BBC55D8E14C4ED1500C41CA1 /* Cocoa.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -59,7 +41,7 @@
 		BBC55D8B14C4ED1500C41CA1 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				BBC55D8A14C4ED1500C41CA1 /* InjectionBundle.bundle */,
+				BBC55D8A14C4ED1500C41CA1 /* InjectionLoader.bundle */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -67,7 +49,6 @@
 		BBC55D8C14C4ED1500C41CA1 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				BBC55D8D14C4ED1500C41CA1 /* Cocoa.framework */,
 				BBC55D8F14C4ED1500C41CA1 /* Other Frameworks */,
 			);
 			name = Frameworks;
@@ -76,13 +57,6 @@
 		BBC55D8F14C4ED1500C41CA1 /* Other Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				BB38FF3A15652C5900921F8E /* WebKit.framework */,
-				BB836D4F14DE3B750064F4F9 /* OpenGL.framework */,
-				BB836D4814DE3B610064F4F9 /* Quartz.framework */,
-				BB836D4914DE3B610064F4F9 /* QuartzCore.framework */,
-				BBC55D9014C4ED1500C41CA1 /* AppKit.framework */,
-				BBC55D9114C4ED1500C41CA1 /* CoreData.framework */,
-				BBC55D9214C4ED1500C41CA1 /* Foundation.framework */,
 			);
 			name = "Other Frameworks";
 			sourceTree = "<group>";
@@ -90,8 +64,8 @@
 		BBC55D9314C4ED1500C41CA1 /* InjectionBundle */ = {
 			isa = PBXGroup;
 			children = (
-				BB2B840517DD31FA0061BBB6 /* BundleContents.h */,
-				BBC7A4A716A57FF700B90868 /* BundleContents.m */,
+				BB2B840417DD31CD0061BBB6 /* BundleContents.h */,
+				BBC7A4A116A57FCB00B90868 /* BundleContents.m */,
 				BBC55D9414C4ED1500C41CA1 /* Supporting Files */,
 			);
 			path = InjectionBundle;
@@ -123,7 +97,7 @@
 			);
 			name = InjectionBundle;
 			productName = InjectionBundle;
-			productReference = BBC55D8A14C4ED1500C41CA1 /* InjectionBundle.bundle */;
+			productReference = BBC55D8A14C4ED1500C41CA1 /* InjectionLoader.bundle */;
 			productType = "com.apple.product-type.bundle";
 		};
 /* End PBXNativeTarget section */
@@ -134,7 +108,7 @@
 			attributes = {
 				LastUpgradeCheck = 0420;
 			};
-			buildConfigurationList = BBC55D8414C4ED1500C41CA1 /* Build configuration list for PBXProject "InjectionBundle" */;
+			buildConfigurationList = BBC55D8414C4ED1500C41CA1 /* Build configuration list for PBXProject "InjectionLoader" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
@@ -166,7 +140,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BBC7A4A816A57FF700B90868 /* BundleContents.m in Sources */,
+				BBC7A4A216A57FCB00B90868 /* BundleContents.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -177,20 +151,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				ARCHS = "$(ARCHS_STANDARD_INCLUDING_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "compiler-default";
 				CLANG_CXX_LIBRARY = "compiler-default";
 				CLANG_ENABLE_OBJC_ARC = NO;
 				COPY_PHASE_STRIP = NO;
+				FRAMEWORK_SEARCH_PATHS = "../**";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
-				GCC_ENABLE_OBJC_GC = unsupported;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"DEBUG=1",
-					"$(inherited)",
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = DEBUG;
 				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
 				GCC_VERSION = "";
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -201,16 +172,16 @@
 					"../**",
 					$SDKROOT/usr/include/libxml2,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
-				ONLY_ACTIVE_ARCH = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
+				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = (
 					"-undefined",
 					dynamic_lookup,
 				);
-				SDKROOT = macosx;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				USER_HEADER_SEARCH_PATHS = ..;
-				VALID_ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 			};
 			name = Debug;
 		};
@@ -218,15 +189,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
-				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				ARCHS = "$(ARCHS_STANDARD_INCLUDING_64_BIT)";
 				CLANG_CXX_LANGUAGE_STANDARD = "compiler-default";
 				CLANG_CXX_LIBRARY = "compiler-default";
 				CLANG_ENABLE_OBJC_ARC = NO;
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				FRAMEWORK_SEARCH_PATHS = "../**";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
-				GCC_ENABLE_OBJC_GC = unsupported;
+				GCC_PREPROCESSOR_DEFINITIONS = DEBUG;
 				GCC_VERSION = "";
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
@@ -236,15 +208,15 @@
 					"../**",
 					$SDKROOT/usr/include/libxml2,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
 				OTHER_CFLAGS = "";
 				OTHER_LDFLAGS = (
 					"-undefined",
 					dynamic_lookup,
 				);
-				SDKROOT = macosx;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				USER_HEADER_SEARCH_PATHS = ..;
-				VALID_ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
 			};
 			name = Release;
 		};
@@ -255,7 +227,8 @@
 				GCC_PREFIX_HEADER = "InjectionBundle-Prefix.pch";
 				INFOPLIST_FILE = "InjectionBundle-Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
+				PRODUCT_NAME = InjectionLoader;
 				WRAPPER_EXTENSION = bundle;
 			};
 			name = Debug;
@@ -267,7 +240,8 @@
 				GCC_PREFIX_HEADER = "InjectionBundle-Prefix.pch";
 				INFOPLIST_FILE = "InjectionBundle-Info.plist";
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Bundles";
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				IPHONEOS_DEPLOYMENT_TARGET = 5.0;
+				PRODUCT_NAME = InjectionLoader;
 				WRAPPER_EXTENSION = bundle;
 			};
 			name = Release;
@@ -275,7 +249,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		BBC55D8414C4ED1500C41CA1 /* Build configuration list for PBXProject "InjectionBundle" */ = {
+		BBC55D8414C4ED1500C41CA1 /* Build configuration list for PBXProject "InjectionLoader" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				BBC55D9A14C4ED1500C41CA1 /* Debug */,

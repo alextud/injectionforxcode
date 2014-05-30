@@ -1,5 +1,5 @@
 //
-//  $Id: //depot/InjectionPluginLite/Classes/BundleInterface.h#11 $
+//  $Id: //depot/InjectionPluginLite/Classes/BundleInterface.h#15 $
 //  Injection
 //
 //  Created by John Holdsworth on 16/01/2012.
@@ -9,12 +9,23 @@
 //
 //  This file is copyright and may not be re-distributed, whole or in part.
 //
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+//  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+//  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+//  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+//  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+//  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+//  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
 
 #ifdef __OBJC__
 
 #ifndef INJECTION_PLUGIN
 #define INJECTION_PLUGIN "com.johnholdsworth.InjectionPlugin"
-#define INJECTION_VERSION "3.5"
+#define INJECTION_VERSION "5.1"
 
 // scope macros
 #ifdef INJECTION_ENABLED
@@ -46,6 +57,7 @@ extern NSColor *INColors[INJECTION_PARAMETERS];
 
 extern id INColorTargets[INJECTION_PARAMETERS];
 extern SEL INColorActions[INJECTION_PARAMETERS];
+extern id INColorDelegate;
 extern id INImageTarget; // action is setImage:
 
 extern NSString *kINNotification; // bundle loaded
@@ -62,6 +74,7 @@ extern NSString *kINNotification; // bundle loaded
 
 @interface NSObject(INParameterDelegate)
 - (void)inParameter:(int)tag hasChanged:(float)value;
+- (void)inColor:(int)tag hasChanged:(id)value;
 - (void)injectionBundleLoaded:(NSNotification *)notification;
 @end
 

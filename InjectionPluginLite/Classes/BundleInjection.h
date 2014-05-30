@@ -1,14 +1,25 @@
 //
-//  $Id$
+//  $Id: //depot/InjectionPluginLite/Classes/BundleInjection.h#51 $
 //  Injection
 //
 //  Created by John Holdsworth on 16/01/2012.
 //  Copyright (c) 2012 John Holdsworth. All rights reserved.
 //
 //  Client application interface to Code Injection system.
-//  Added to program's main.m to connect to the Injection app.
+//  Added to program's main.(m|mm) to connect to the Injection app.
 //
 //  This file is copyright and may not be re-distributed, whole or in part.
+//
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+//  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+//  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+//  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+//  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+//  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+//  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+//  OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+//  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
 #import "BundleInterface.h"
@@ -40,11 +51,12 @@ struct _in_header { int pathLength, dataLength; };
 + (BOOL)writeBytes:(off_t)bytes withPath:(const char *)path from:(int)fdin to:(int)fdout;
 #ifdef INJECTION_BUNDLE
 + (void)loadedClass:(Class)newClass notify:(BOOL)notify;
-+ (void)loadedNotify:(BOOL)notify;
++ (void)loadedNotify:(BOOL)notify hook:(void *)hook;
 #endif
 @end
 
 #import <netinet/tcp.h>
+#import <sys/socket.h>
 #import <arpa/inet.h>
 #import <sys/stat.h>
 #import <unistd.h>
@@ -52,7 +64,7 @@ struct _in_header { int pathLength, dataLength; };
 
 #ifndef INJECTION_NOIMPL
 
-#ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && !defined(INJECTION_LOADER)
 @interface UINib(BundleInjection)
 - (NSArray *)inInstantiateWithOwner:(id)ownerOrNil options:(NSDictionary *)optionsOrNil;
 @end
@@ -108,29 +120,15 @@ NSColor *INColors[INJECTION_PARAMETERS];
 #endif
 id INColorTargets[INJECTION_PARAMETERS];
 SEL INColorActions[INJECTION_PARAMETERS];
+id INColorDelegate;
 id INImageTarget;
 
 static char path[PATH_MAX], *file = &path[1];
 static int status, sbInjection;
 
+#ifndef ANDROID
 static NSNetServiceBrowser *browser;
 static NSNetService *service;
-
-+ (void)load {
-    //INLog( @"+load: %s", _inIPAddresses[0] );
-    if ( _inIPAddresses[0][0] == '_' ) {
-        NSString *bonjourName = [NSString stringWithUTF8String:_inIPAddresses[0]];
-        _inIPAddresses[0] = _inIPAddresses[1];
-
-        browser = [NSNetServiceBrowser new];
-        browser.delegate = (id<NSNetServiceBrowserDelegate>)self;
-
-        INLog( @"%s looking for service: %@", INJECTION_APPNAME, bonjourName );
-        [browser searchForServicesOfType:bonjourName inDomain:@""];
-    }
-    else
-        [self performSelectorInBackground:@selector(bundleLoader) withObject:nil];
-}
 
 +(void)netServiceBrowser:(NSNetServiceBrowser *)aBrowser didFindService:(NSNetService *)aService moreComing:(BOOL)more {
     service = aService;
@@ -160,6 +158,25 @@ static NSNetService *service;
 +(void)netService:(NSNetService *)service didNotResolve:(NSDictionary *)errorDict {
     NSLog(@"%s could not resolve: %@", INJECTION_APPNAME, errorDict);
     [self performSelectorInBackground:@selector(bundleLoader) withObject:nil];
+}
+
++ (void)load {
+    //INLog( @"+load: %s", _inIPAddresses[0] );
+    if ( _inIPAddresses[0][0] == '_' ) {
+        NSString *bonjourName = [NSString stringWithUTF8String:_inIPAddresses[0]];
+        _inIPAddresses[0] = _inIPAddresses[1];
+
+        browser = [NSNetServiceBrowser new];
+        browser.delegate = (id<NSNetServiceBrowserDelegate>)self;
+
+        INLog( @"%s looking for service: %@", INJECTION_APPNAME, bonjourName );
+        [browser searchForServicesOfType:bonjourName inDomain:@""];
+    }
+    else
+#else
++ (void)load {
+#endif
+        [self performSelectorInBackground:@selector(bundleLoader) withObject:nil];
 }
 
 #import <dirent.h>
@@ -195,7 +212,7 @@ static NSNetService *service;
 	inet_aton( ipAddress, &loaderAddr.sin_addr );
 	loaderAddr.sin_port = htons(INJECTION_PORT);
 
-    INLog( @"%s attempting connection to: %s:%d (see project's main.m)", INJECTION_APPNAME, ipAddress, INJECTION_PORT );
+    INLog( @"%s attempting connection to: %s:%d (see project's main.(m|mm)", INJECTION_APPNAME, ipAddress, INJECTION_PORT );
 
     int loaderSocket, optval = 1;
     if ( (loaderSocket = socket(loaderAddr.sin_family, SOCK_STREAM, 0)) < 0 )
@@ -211,10 +228,12 @@ static NSNetService *service;
 
 #import <objc/runtime.h>
 #import <sys/sysctl.h>
+#import <dlfcn.h>
 
 #ifndef ANDROID
 #import <mach-o/dyld.h>
 #import <mach-o/arch.h>
+#import <mach-o/getsect.h>
 #endif
 
 + (void)bundleLoader {
@@ -239,6 +258,10 @@ static NSNetService *service;
         const struct mach_header *m_header = _dyld_get_image_header(0);
         const NXArchInfo *info = NXGetArchInfoFromCpuType(m_header->cputype, m_header->cpusubtype);
         const char *arch = info->name;
+#ifndef __IPHONE_OS_VERSION_MIN_REQUIRED
+        if ( strcmp( arch, "i386" ) == 0 )
+            NSLog( @"\n\n**** Injection does not work with 32 bit \"legacy\" OS X Objective-C runtime. ****\n\n" );
+#endif
 #else
         const char *arch = "android";
 #endif
@@ -267,7 +290,7 @@ static NSNetService *service;
                 return;
             }
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && !defined(INJECTION_LOADER)
             if ( (sbInjection = status & 2) )
                 method_exchangeImplementations(
                    class_getInstanceMethod([UINib class], @selector(instantiateWithOwner:options:)),
@@ -374,6 +397,7 @@ static NSNetService *service;
                         int j;
                         for ( j=0 ; j<len ; )
                             j += read( loaderSocket, buff+j, j+block < len ? block : len-j );
+#ifndef INJECTION_LOADER
                         NSData *data = [NSData dataWithBytesNoCopy:buff length:len freeWhenDone:YES];
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
                         UIImage *img = [[UIImage alloc] initWithData:data];
@@ -384,6 +408,9 @@ static NSNetService *service;
                                                         withObject:img waitUntilDone:NO];
 #ifndef INJECTION_ISARC
                         [img release];
+#endif
+#else
+                        NSLog( @"Image injection not available in \"unpatched\" Injection" );
 #endif
                     }
                         break;
@@ -396,7 +423,7 @@ static NSNetService *service;
                         else
                             NSLog( @"'Inject StoryBds' must be enabled on the Tunable Parameters panel." );
 #else
-                        NSLog( @"Storyboard injection only available for iOS." );
+                        NSLog( @"Storyboard injection only available for iOS in Xcode 4." );
 #endif
                         break;
 
@@ -409,11 +436,14 @@ static NSNetService *service;
                             int tag = path[0]-'0';
                             if ( tag < 5 ) {
                                 INParameters[tag] = atof( file );
+                                INLog( @"Param #%d -> %f", tag, INParameters[tag] );
                                 [INDelegates[tag] inParameter:tag hasChanged:INParameters[tag]];
                             }
                             else if ( (tag -= 5) < 5 ) {
+#ifndef INJECTION_LOADER
                                 float r, g, b, a;
                                 sscanf( file, "%f,%f,%f,%f", &r, &g, &b, &a );
+                                INLog( @"Color #%d -> %f,%f,%f,%f", tag, r, g, b, a );
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
                                 UIColor *col = [UIColor colorWithRed:r green:g
                                                                 blue:b alpha:a];
@@ -436,6 +466,13 @@ static NSNetService *service;
 
                                 if ( [target respondsToSelector:@selector(setNeedsDisplay)] )
                                     [target setNeedsDisplay];
+                                if ( [INColorDelegate respondsToSelector:@selector(inColor:hasChanged:)] )
+                                    [INColorDelegate inColor:tag hasChanged:col];
+#else
+                                static int warned;
+                                if ( !warned++ )
+                                    NSLog( @"Color tuning not available in \"unpatched\" Injection" );
+#endif
                             }
                                 
                         }
@@ -480,9 +517,14 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
 
 #else
 
-#import <dlfcn.h>
+// Apportable's Objective-C data structures ...
+struct _in_objc_ivars { int twenty, count; struct { long *offsetPtr; char *name, *type; int align, size; } ivars[1]; };
+struct _in_objc_ronly { int z1, offsetStart; int offsetEnd, z2; char *className; void *methods, *skip2; struct _in_objc_ivars *ivars; };
+struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_ronly *internal; };
 
-+ (const char *)registerSelectorsInFile:(const char *)file containing:(void *)hook {
+#import <elf.h>
+
++ (const char *)registerSelectorsInLibrary:(const char *)file containing:(void *)hook {
 
     struct stat st;
     if ( stat( file, &st ) < 0 )
@@ -497,31 +539,24 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
         return "Could not read file";
     fclose( fp );
 
-    struct _elf {
-        char e_ident[16];
-        uint16_t e_type, e_machine;
-        uint32_t e_version, e_entry, e_phoff, e_shoff, e_flags;
-        uint16_t e_ehsize, e_phentsize, e_phnum, e_shentsize, e_shnum;
-    } *hdr = (struct _elf *)buffer;
+    Elf32_Ehdr *hdr = (Elf32_Ehdr *)buffer;
 
     //NSLog( @"Offsets: %lld %d %d %d %d", st.st_size, hdr->e_phoff, hdr->e_shoff, hdr->e_shentsize, hdr->e_shnum );
 
     if ( hdr->e_shoff > st.st_size )
         return "Bad segment header offset";
 
-    struct _section {
-        uint32_t sh_name, sh_type, sh_flags, sh_addr, sh_offset,
-            sh_size, sh_link, sh_info, sh_addralign, sh_entsize;
-    } *sections = (struct _section *)(buffer+hdr->e_shoff);
+    Elf32_Shdr *sections = (Elf32_Shdr *)(buffer+hdr->e_shoff);
 
-    if ( sections[hdr->e_shnum-1].sh_offset > st.st_size )
+    // assumes names section is last...
+    const char *names = buffer+sections[hdr->e_shnum-1].sh_offset;
+    if ( names > buffer + st.st_size )
         return "Bad section name table offset";
 
-    const char *names = buffer+sections[hdr->e_shnum-1].sh_offset;
     unsigned offset = 0, nsels = 0;
 
     for ( int i=0 ; i<hdr->e_shnum ; i++ ) {
-        struct _section *sect = &sections[i];
+        Elf32_Shdr *sect = &sections[i];
         const char *name = names+sect->sh_name;
         //NSLog( @"Section: %s 0x%x[%d] %d %d", name, sect->sh_offset, sect->sh_size, sect->sh_addr, sect->sh_addralign );
         if ( strcmp( name, "__DATA, __objc_selrefs, literal_pointers, no_dead_strip" ) == 0 ) {
@@ -539,11 +574,7 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
 
     SEL *sels = (SEL *)((char *)info.dli_fbase+offset);
     for ( unsigned i=0 ; i<nsels/sizeof *sels ; i++ )
-        if ( (void *)sels[i] < info.dli_fbase )
-            NSLog( @"Dud selector reference: %p - %.50s", sels[i],
-                  *(char **)&sels[i]+((char *)info.dli_fbase-(char *)0) );
-        else
-            sels[i] = sel_registerName( (const char *)(void *)sels[i] );
+        sels[i] = sel_registerName( (const char *)(void *)sels[i] );
 
     free( buffer );
     return NULL;
@@ -559,22 +590,18 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
         if ( !hook )
             NSLog( @"Unable to locate injectionHook() in: %s", path );
         else {
-            const char *err = [self registerSelectorsInFile:path containing:hook];
+            const char *err = [self registerSelectorsInLibrary:path containing:hook];
             if ( err )
-                NSLog( @"registerSelectors: %s", err );
+                NSLog( @"registerSelectorsInLibrary: %s", err );
             status = hook( path );
         }
     }
 }
 
-// a little inside knowledge of Objective-C data structures for the new version of the class ...
-struct _in_objc_ivars { int twenty, count; struct { long *offsetPtr; char *name, *type; int align, size; } ivars[1]; };
-struct _in_objc_ronly { int z1, offsetStart; int offsetEnd, z2; char *className; void *methods, *skip2; struct _in_objc_ivars *ivars; };
-struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_ronly *internal; };
-
 #endif
 
 + (void)alignIvarsOf:(Class)newClass to:(Class)oldClass {
+    // this used to be necessary due to the vagaries of clang
     // new version of class must not have been messaged at this point
     // i.e. the new version must not have a "+ (void)load" method
     struct _in_objc_class *nc = INJECTION_BRIDGE(struct _in_objc_class *)newClass;
@@ -583,15 +610,21 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
 
     // align ivars in new class with original
     for ( int i=0 ; ivars && i<ivars->count ; i++ ) {
-        Ivar ivar = class_getInstanceVariable(oldClass, ivars->ivars[i].name);
+        const char *ivarName = ivars->ivars[i].name;
+        Ivar ivar = class_getInstanceVariable(oldClass, ivarName);
         if ( !ivar )
-            NSLog( @"*** Please re-run your application to add ivar '%s' ***",
-                  ivars->ivars[i].name );
+            NSLog( @"*** Please re-run your application to add ivar '%s' ***", ivarName );
         else {
-            if ( strcmp( ivar_getTypeEncoding( ivar ), ivars->ivars[i].type ) )
+            if ( strcmp( ivar_getTypeEncoding( ivar ), ivars->ivars[i].type ) != 0 )
                 NSLog( @"*** Ivar '%s' has changed type, re-run application. ***",
                       ivars->ivars[i].name );
-            *ivars->ivars[i].offsetPtr = ivar_getOffset(ivar);
+
+            long *newOffsetPtr = ivars->ivars[i].offsetPtr, oldOffset = ivar_getOffset(ivar);
+            if ( *newOffsetPtr != oldOffset ) {
+                NSLog( @"Aligning ivar: %s.%s as %ld != %ld",
+                      class_getName(oldClass), ivarName, *newOffsetPtr, oldOffset );
+                *newOffsetPtr = oldOffset;
+            }
         }
     }
 }
@@ -613,7 +646,13 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
         const char *type = method_getTypeEncoding(methods[i]);
 
         //INLog( @"Swizzling: %c[%s %s] %s to: %p", which, className, sel_getName(name), type, newIMPL );
-        class_replaceMethod(oldClass, name, newIMPL, type);
+#ifdef INJECTION_LOADER
+        if ( originals.find(oldClass) != originals.end() &&
+            originals[oldClass].find(name) != originals[oldClass].end() )
+            originals[oldClass][name].original = (XTRACE_VIMP)newIMPL;
+        else
+#endif
+            class_replaceMethod(oldClass, name, newIMPL, type);
     }
     free(methods);
 }
@@ -634,6 +673,7 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
     [self dumpIvars:oldClass];
     [self dumpIvars:newClass];
 #endif
+#ifndef INJECTION_LOADER
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
     if ( notify & INJECTION_NOTSILENT ) {
         NSString *msg = [[NSString alloc] initWithFormat:@"Class '%s' injected.", className];
@@ -651,9 +691,38 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
 #else
     INLog( @" ...ignore any warning, Injection has swizzled class '%s'", className );
 #endif
+#endif
 }
 
-+ (void)loadedNotify:(BOOL)notify {
++ (void)loadedNotify:(BOOL)notify hook:(void *)hook {
+#ifndef ANDROID
+    Dl_info info;
+    if ( !dladdr( hook, &info ) )
+        NSLog( @"Could not find load address" );
+
+#ifndef __LP64__
+    uint32_t size = 0;
+    char *referencesSection = getsectdatafromheader((struct mach_header *)info.dli_fbase,
+                                                    "__DATA", "__objc_classrefs", &size );
+#else
+    uint64_t size = 0;
+    char *referencesSection = getsectdatafromheader_64((struct mach_header_64 *)info.dli_fbase,
+                                                       "__DATA", "__objc_classrefs", &size );
+#endif
+
+    if ( referencesSection ) {
+        Class *classReferences = (Class *)(void *)((char *)info.dli_fbase+(uint64_t)referencesSection);
+        for ( int i=0 ; i<size/sizeof *classReferences ; i++ ) {
+            const char *className = class_getName(classReferences[i]);
+            Class originalClass = objc_getClass( className );
+            if ( originalClass && classReferences[i] != originalClass ) {
+                INLog( @"Fixing references to class: %s %p -> %p", className, classReferences[i], originalClass );
+                classReferences[i] = originalClass;
+            }
+        }
+    }
+#endif
+
     INLog( @"Bundle \"%s\" loaded successfully.", strrchr( path, '/' )+1 );
 #ifndef __IPHONE_OS_VERSION_MIN_REQUIRED
     if ( notify & INJECTION_ORDERFRONT )
@@ -666,7 +735,7 @@ struct _in_objc_class { Class meta, supr; void *cache, *vtable; struct _in_objc_
 
 #endif
 
-#if __IPHONE_OS_VERSION_MIN_REQUIRED
+#if defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && !defined(INJECTION_LOADER)
 
 static NSMutableDictionary *nibsByNibName, *optionsByVC;
 
